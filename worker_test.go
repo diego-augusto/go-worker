@@ -60,3 +60,29 @@ func TestWorker(t *testing.T) {
 		t.Fatalf("Error running worker: %v", err)
 	}
 }
+
+func TestWorker_DefaultExecuter(t *testing.T) {
+
+	j1 := MockJob{
+		DoMock: func(ctx context.Context) error {
+			return nil
+		},
+	}
+	j2 := MockJob{
+		DoMock: func(ctx context.Context) error {
+			return nil
+		},
+	}
+
+	worker, err := worker.New(
+		worker.WithJobs([]worker.Job{j1, j2}),
+	)
+	if err != nil {
+		t.Fatalf("Error creating worker: %v", err)
+	}
+
+	err = worker.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Error running worker: %v", err)
+	}
+}

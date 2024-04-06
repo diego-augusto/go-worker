@@ -16,9 +16,6 @@ type optFunc func(*Worker)
 type Job interface {
 	Do(ctx context.Context) error
 }
-type Executer interface {
-	Execute(ctx context.Context, fn func(ctx context.Context) error) error
-}
 
 func WithJobs(jobs []Job) optFunc {
 	return func(w *Worker) {
@@ -38,7 +35,10 @@ type Worker struct {
 }
 
 func New(options ...optFunc) (*Worker, error) {
-	worker := Worker{}
+	worker := Worker{
+		Jobs:      nil,
+		Executers: []Executer{NewDefaultExecuter()},
+	}
 
 	for _, opt := range options {
 		opt(&worker)
