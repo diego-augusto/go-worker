@@ -2,26 +2,64 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
-type Executer interface {
+var (
+	ErrNoJobs      = errors.New("no jobs provided")
+	ErrNoExecuters = errors.New("no executers provided")
+)
+
+type optFunc func(*Worker)
+
+type Job interface {
 	Do(ctx context.Context) error
+}
+type Executer interface {
+	Execute(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+func WithJobs(jobs []Job) optFunc {
+	return func(w *Worker) {
+		w.Jobs = jobs
+	}
+}
+
+func WithExecuters(executers []Executer) optFunc {
+	return func(w *Worker) {
+		w.Executers = executers
+	}
 }
 
 type Worker struct {
-	Jobs []Executer
+	Jobs      []Job
+	Executers []Executer
 }
 
-func NewWorker(jobs ...Executer) Worker {
-	return Worker{Jobs: jobs}
+func New(options ...optFunc) (*Worker, error) {
+	worker := Worker{}
+
+	for _, opt := range options {
+		opt(&worker)
+	}
+
+	if worker.Jobs == nil {
+		return nil, ErrNoJobs
+	}
+
+	if worker.Executers == nil {
+		return nil, ErrNoExecuters
+	}
+
+	return &worker, nil
 }
 
-func (w Worker) Run(ctx context.Context, workers int) error {
+func (w Worker) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
-	jobChannel := make(chan Executer, len(w.Jobs))
+	jobChannel := make(chan Job, len(w.Jobs))
 
-	for i := 0; i < workers; i++ {
+	for _, e := range w.Executers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -30,8 +68,7 @@ func (w Worker) Run(ctx context.Context, workers int) error {
 				case <-ctx.Done():
 					return
 				default:
-					//TODO: return error
-					_ = job.Do(ctx)
+					_ = e.Execute(ctx, job.Do)
 				}
 			}
 		}()
