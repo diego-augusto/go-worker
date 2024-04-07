@@ -1,21 +1,21 @@
 package worker
 
-type optFunc func(*worker)
+type optFunc func(*pool)
 
-func WithDoers(doers ...Doer) optFunc {
-	return func(w *worker) {
-		w.doers = doers
+func WithWorkers(workers ...Worker) optFunc {
+	return func(w *pool) {
+		w.workers = workers
 	}
 }
 
 func WithExecuters(executers ...Executer) optFunc {
-	return func(w *worker) {
+	return func(w *pool) {
 		w.executers = executers
 	}
 }
 
 func WithDefaultExecuter() optFunc {
-	return func(w *worker) {
+	return func(w *pool) {
 		w.executers = append(w.executers, NewDefaultExecuter())
 	}
 }
