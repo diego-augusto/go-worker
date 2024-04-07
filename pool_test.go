@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockDoer struct {
+type MockWorker struct {
 	DoMock func(ctx context.Context) error
 }
 
-func (m MockDoer) Do(ctx context.Context) error {
+func (m MockWorker) Do(ctx context.Context) error {
 	return m.DoMock(ctx)
 }
 
@@ -27,12 +27,12 @@ func (m MockExecuter) Execute(ctx context.Context, fn func(ctx context.Context) 
 
 func TestWorker(t *testing.T) {
 
-	j1 := MockDoer{
+	j1 := MockWorker{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	j2 := MockDoer{
+	j2 := MockWorker{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
@@ -49,8 +49,8 @@ func TestWorker(t *testing.T) {
 		},
 	}
 
-	worker, err := worker.New(
-		worker.WithDoers(j1, j2),
+	worker, err := worker.NewPool(
+		worker.WithWorkers(j1, j2),
 		worker.WithExecuters(e1, e2),
 	)
 	require.NoError(t, err)
@@ -63,19 +63,19 @@ func TestWorker(t *testing.T) {
 
 func TestWorker_DefaultExecuter(t *testing.T) {
 
-	j1 := MockDoer{
+	j1 := MockWorker{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	j2 := MockDoer{
+	j2 := MockWorker{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
 
-	worker, err := worker.New(
-		worker.WithDoers(j1, j2),
+	worker, err := worker.NewPool(
+		worker.WithWorkers(j1, j2),
 		worker.WithDefaultExecuter(),
 	)
 	require.NoError(t, err)
@@ -86,28 +86,28 @@ func TestWorker_DefaultExecuter(t *testing.T) {
 	assert.NotNil(t, worker)
 }
 
-func TestWorker_NoDoers(t *testing.T) {
+func TestWorker_NoWorkers(t *testing.T) {
 
-	w, err := worker.New()
+	w, err := worker.NewPool()
 	require.Nil(t, w)
-	assert.Equal(t, worker.ErrNoDoers, err)
+	assert.Equal(t, worker.ErrNoWorkers, err)
 
-	w, err = worker.New(worker.WithDoers())
+	w, err = worker.NewPool(worker.WithWorkers())
 	require.Nil(t, w)
-	assert.Equal(t, worker.ErrNoDoers, err)
+	assert.Equal(t, worker.ErrNoWorkers, err)
 }
 
 func TestWorker_NoExecuters(t *testing.T) {
 
-	w, err := worker.New(
-		worker.WithDoers(MockDoer{}),
+	w, err := worker.NewPool(
+		worker.WithWorkers(MockWorker{}),
 		worker.WithExecuters(),
 	)
 	require.Nil(t, w)
 	assert.Equal(t, worker.ErrNoExecuters, err)
 
-	w, err = worker.New(
-		worker.WithDoers(MockDoer{}),
+	w, err = worker.NewPool(
+		worker.WithWorkers(MockWorker{}),
 		worker.WithExecuters(),
 	)
 	require.Nil(t, w)
@@ -118,8 +118,8 @@ func TestRunContextDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	w, err := worker.New(
-		worker.WithDoers(MockDoer{}),
+	w, err := worker.NewPool(
+		worker.WithWorkers(MockWorker{}),
 		worker.WithDefaultExecuter(),
 	)
 	require.NoError(t, err)

@@ -18,20 +18,42 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"time"
 
 	"github.com/diego-augusto/go-worker"
 )
 
-type job struct {
-	id    int
-	delay time.Duration
+type counter struct {
+	times int64
 }
 
-func NewJob(id, delay int) *job {
+func (c *counter) Add(ctx context.Context) error {
+	atomic.AddInt64(&c.times, 1)
+	return nil
+}
+
+func (c *counter) Get(ctx context.Context) (int64, error) {
+	return atomic.LoadInt64(&c.times), nil
+}
+
+func NewCounter() *counter {
+	return &counter{
+		times: 0,
+	}
+}
+
+type job struct {
+	id      int
+	delay   time.Duration
+	counter *counter
+}
+
+func NewJob(id, delay int, counter *counter) *job {
 	return &job{
-		id:    id,
-		delay: time.Duration(delay) * time.Second,
+		id:      id,
+		delay:   time.Duration(delay) * time.Second,
+		counter: counter,
 	}
 }
 
@@ -42,6 +64,9 @@ func (j *job) Do(ctx context.Context) error {
 
 	fmt.Printf("Doing job: %d with executor: %d\n", j.id, executorID)
 	time.Sleep(j.delay)
+
+	j.counter.Add(ctx)
+
 	return nil
 }
 
@@ -66,11 +91,16 @@ func NewExecutor(id int) *executor {
 
 func main() {
 
+	ctx := context.Background()
+
+	// Create listener
+	listener := NewCounter()
+
 	// Create jobs
-	jobs := make([]worker.Doer, 0)
+	jobs := make([]worker.Worker, 0)
 	delayInSec := 1
 	for i := range 100 {
-		jobs = append(jobs, NewJob(i, delayInSec))
+		jobs = append(jobs, NewJob(i, delayInSec, listener))
 	}
 
 	// Create executors
@@ -79,8 +109,8 @@ func main() {
 		executors = append(executors, NewExecutor(i))
 	}
 
-	w, err := worker.New(
-		worker.WithDoers(jobs...),
+	w, err := worker.NewPool(
+		worker.WithWorkers(jobs...),
 		worker.WithExecuters(executors...),
 	)
 	if err != nil {
@@ -97,6 +127,8 @@ func main() {
 			panic(err)
 		}
 		fmt.Println("Worker finished...")
+		counter, _ := listener.Get(ctx)
+		fmt.Printf("Executions: %d\n", counter)
 		os.Exit(0)
 	}()
 
