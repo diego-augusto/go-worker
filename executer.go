@@ -2,14 +2,14 @@ package worker
 
 import "context"
 
-type Executer interface {
+type executer interface {
 	Execute(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
 type defaultExecuter struct {
 }
 
-func NewDefaultExecuter() Executer {
+func NewDefaultExecuter() executer {
 	return defaultExecuter{}
 }
 

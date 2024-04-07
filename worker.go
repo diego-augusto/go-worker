@@ -7,79 +7,63 @@ import (
 )
 
 var (
-	ErrNoJobs      = errors.New("no jobs provided")
+	ErrNoDoers     = errors.New("no doers provided")
 	ErrNoExecuters = errors.New("no executers provided")
 )
 
-type optFunc func(*Worker)
-
-type Job interface {
-	Do(ctx context.Context) error
+type worker struct {
+	doers     []doer
+	executers []executer
 }
 
-func WithJobs(jobs []Job) optFunc {
-	return func(w *Worker) {
-		w.Jobs = jobs
-	}
-}
-
-func WithExecuters(executers []Executer) optFunc {
-	return func(w *Worker) {
-		w.Executers = executers
-	}
-}
-
-type Worker struct {
-	Jobs      []Job
-	Executers []Executer
-}
-
-func New(options ...optFunc) (*Worker, error) {
-	worker := Worker{
-		Jobs:      nil,
-		Executers: []Executer{NewDefaultExecuter()},
-	}
+func New(options ...optFunc) (*worker, error) {
+	w := worker{}
 
 	for _, opt := range options {
-		opt(&worker)
+		opt(&w)
 	}
 
-	if worker.Jobs == nil {
-		return nil, ErrNoJobs
+	if w.doers == nil {
+		return nil, ErrNoDoers
 	}
 
-	if worker.Executers == nil {
+	if w.executers == nil {
 		return nil, ErrNoExecuters
 	}
 
-	return &worker, nil
+	return &w, nil
 }
 
-func (w Worker) Run(ctx context.Context) error {
+func (w worker) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
-	jobChannel := make(chan Job, len(w.Jobs))
+	doerChannel := make(chan doer, len(w.doers))
 
-	for _, e := range w.Executers {
+	for _, e := range w.executers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for job := range jobChannel {
+			for doer := range doerChannel {
 				select {
 				case <-ctx.Done():
 					return
 				default:
-					_ = e.Execute(ctx, job.Do)
+					_ = e.Execute(ctx, doer.Do)
 				}
 			}
 		}()
+
 	}
 
-	for _, job := range w.Jobs {
-		jobChannel <- job
+	for _, doer := range w.doers {
+		doerChannel <- doer
 	}
-	close(jobChannel)
+	close(doerChannel)
 
 	wg.Wait()
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	return nil
 }

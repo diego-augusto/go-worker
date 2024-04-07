@@ -5,13 +5,15 @@ import (
 	"testing"
 
 	"github.com/diego-augusto/go-worker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type MockJob struct {
+type MockDoer struct {
 	DoMock func(ctx context.Context) error
 }
 
-func (m MockJob) Do(ctx context.Context) error {
+func (m MockDoer) Do(ctx context.Context) error {
 	return m.DoMock(ctx)
 }
 
@@ -25,12 +27,12 @@ func (m MockExecuter) Execute(ctx context.Context, fn func(ctx context.Context) 
 
 func TestWorker(t *testing.T) {
 
-	j1 := MockJob{
+	j1 := MockDoer{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	j2 := MockJob{
+	j2 := MockDoer{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
@@ -48,41 +50,80 @@ func TestWorker(t *testing.T) {
 	}
 
 	worker, err := worker.New(
-		worker.WithJobs([]worker.Job{j1, j2}),
-		worker.WithExecuters([]worker.Executer{e1, e2}),
+		worker.WithDoers(j1, j2),
+		worker.WithExecuters(e1, e2),
 	)
-	if err != nil {
-		t.Fatalf("Error creating worker: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = worker.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Error running worker: %v", err)
-	}
+	require.NoError(t, err)
+
+	assert.NotNil(t, worker)
 }
 
 func TestWorker_DefaultExecuter(t *testing.T) {
 
-	j1 := MockJob{
+	j1 := MockDoer{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	j2 := MockJob{
+	j2 := MockDoer{
 		DoMock: func(ctx context.Context) error {
 			return nil
 		},
 	}
 
 	worker, err := worker.New(
-		worker.WithJobs([]worker.Job{j1, j2}),
+		worker.WithDoers(j1, j2),
+		worker.WithDefaultExecuter(),
 	)
-	if err != nil {
-		t.Fatalf("Error creating worker: %v", err)
-	}
+	require.NoError(t, err)
 
 	err = worker.Run(context.Background())
-	if err != nil {
-		t.Fatalf("Error running worker: %v", err)
-	}
+	require.NoError(t, err)
+
+	assert.NotNil(t, worker)
+}
+
+func TestWorker_NoDoers(t *testing.T) {
+
+	w, err := worker.New()
+	require.Nil(t, w)
+	assert.Equal(t, worker.ErrNoDoers, err)
+
+	w, err = worker.New(worker.WithDoers())
+	require.Nil(t, w)
+	assert.Equal(t, worker.ErrNoDoers, err)
+}
+
+func TestWorker_NoExecuters(t *testing.T) {
+
+	w, err := worker.New(
+		worker.WithDoers(MockDoer{}),
+		worker.WithExecuters(),
+	)
+	require.Nil(t, w)
+	assert.Equal(t, worker.ErrNoExecuters, err)
+
+	w, err = worker.New(
+		worker.WithDoers(MockDoer{}),
+		worker.WithExecuters(),
+	)
+	require.Nil(t, w)
+	assert.Equal(t, worker.ErrNoExecuters, err)
+}
+
+func TestRunContextDone(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	w, err := worker.New(
+		worker.WithDoers(MockDoer{}),
+		worker.WithDefaultExecuter(),
+	)
+	require.NoError(t, err)
+
+	err = w.Run(ctx)
+	assert.Equal(t, context.Canceled, err)
 }
