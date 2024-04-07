@@ -1,16 +1,3 @@
-# Worker
-
-### Description
-The Go Worker project demonstrates a simple implementation of a concurrent worker pool in Go. It utilizes goroutines and channels to efficiently execute multiple tasks concurrently.
-
-### Features
-1. Concurrent execution of jobs using a worker pool pattern.
-2. Control over the number of jobs and worker executors.
-4. Graceful shutdown handling.
-
-### Example
-
-```go
 package main
 
 import (
@@ -107,5 +94,3 @@ func main() {
 	fmt.Println("Exiting gracefully...")
 	os.Exit(0)
 }
-
-```
