@@ -2,13 +2,13 @@ package worker
 
 type optFunc func(*worker)
 
-func WithDoers(doers ...doer) optFunc {
+func WithDoers(doers ...Doer) optFunc {
 	return func(w *worker) {
 		w.doers = doers
 	}
 }
 
-func WithExecuters(executers ...executer) optFunc {
+func WithExecuters(executers ...Executer) optFunc {
 	return func(w *worker) {
 		w.executers = executers
 	}

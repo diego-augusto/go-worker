@@ -2,6 +2,6 @@ package worker
 
 import "context"
 
-type doer interface {
+type Doer interface {
 	Do(ctx context.Context) error
 }

@@ -12,8 +12,8 @@ var (
 )
 
 type worker struct {
-	doers     []doer
-	executers []executer
+	doers     []Doer
+	executers []Executer
 }
 
 func New(options ...optFunc) (*worker, error) {
@@ -36,7 +36,7 @@ func New(options ...optFunc) (*worker, error) {
 
 func (w worker) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
-	doerChannel := make(chan doer, len(w.doers))
+	doerChannel := make(chan Doer, len(w.doers))
 
 	for _, e := range w.executers {
 		wg.Add(1)
